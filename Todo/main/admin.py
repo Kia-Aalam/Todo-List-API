@@ -1,8 +1,8 @@
 from django.contrib import admin
-from .models import Task
+from .models import TaskModel
 
 
-@admin.register(Task)
+@admin.register(TaskModel)
 class TaskAdmin(admin.ModelAdmin):
     list_display = ('id', 'title', 'description', 'completed', 'created_at', 'updated_at')
     list_filter = ('completed', 'created_at', 'updated_at')
