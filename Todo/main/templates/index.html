@@ -1,0 +1,334 @@
+{% verbatim %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✅</text></svg>">
+  <title>My Tasks</title>
+  <style>
+    :root {
+      --bg: #ebeef4; --surface: #fff; --ink: #16213a; --muted: #5a6379;
+      --line: #d3d9e4; --done: #12856a; --focus: #2f45d8; --danger: #b3261e;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--ink); background: var(--bg);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; line-height: 1.55; }
+    button, input, textarea { font: inherit; color: inherit; }
+    :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+    .page { max-width: 42rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+
+    .label { margin: 0; color: var(--muted); font-size: .95rem; }
+    h1 { margin: .1rem 0 .8rem; font-size: clamp(2.1rem, 8vw, 3.2rem); font-weight: 800; line-height: 1.15; letter-spacing: -.02em; }
+    .progress { display: flex; align-items: center; gap: .9rem; margin-bottom: 1.6rem; min-height: 1.4rem; }
+    .bar { flex: 1; height: 6px; background: var(--line); border-radius: 99px; overflow: hidden; }
+    .bar span { display: block; height: 100%; width: 0; background: var(--done); transition: width .4s ease; }
+    .progress small { color: var(--muted); white-space: nowrap; }
+
+    .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+    form.composer { display: grid; gap: .4rem; padding: 1rem 1.1rem; margin-bottom: 1.2rem; }
+    .field { width: 100%; padding: .55rem .7rem; background: transparent; border: 1px solid transparent; border-radius: 10px; resize: vertical; }
+    .field::placeholder { color: #8a93a8; }
+    .field:hover { border-color: var(--line); }
+    .field:focus-visible { border-color: var(--focus); outline-offset: 0; outline-width: 2px; }
+    .field.title { font-size: 1.15rem; font-weight: 700; }
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+    .error { margin: 0; color: var(--danger); font-size: .9rem; }
+
+    .btn { padding: .5rem 1.1rem; background: var(--ink); color: #fff; border: 1px solid var(--ink); border-radius: 10px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    .btn:hover:not(:disabled) { opacity: .88; }
+    .btn:disabled { opacity: .55; cursor: progress; }
+    .btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+    .actions { display: flex; gap: .5rem; }
+
+    .board { overflow: hidden; }
+    .filters { display: flex; gap: .3rem; padding: .7rem .9rem; border-bottom: 1px solid var(--line); }
+    .filter { padding: .2rem .85rem; background: transparent; border: 0; border-radius: 99px; color: var(--muted); cursor: pointer; }
+    .filter:hover { color: var(--ink); }
+    .filter[aria-pressed="true"] { background: var(--ink); color: #fff; font-weight: 600; }
+    ul { margin: 0; padding: 0; list-style: none; }
+    li.task { display: flex; align-items: flex-start; gap: .9rem; padding: 1rem 1.1rem; }
+    li.task + li.task { border-top: 1px solid var(--line); }
+    li.editing { display: block; background: #f7f8fb; }
+    li.editing .field { background: var(--surface); border-color: var(--line); margin-bottom: .4rem; }
+
+    .check { appearance: none; flex: none; width: 1.6rem; height: 1.6rem; margin: .15rem 0 0; border: 2px solid #9aa3b8; border-radius: 50%; background: transparent; cursor: pointer; display: grid; place-content: center; transition: background .2s, border-color .2s; }
+    .check::after { content: ""; width: .35rem; height: .7rem; border: solid #fff; border-width: 0 2.5px 2.5px 0; transform: translateY(-1px) rotate(45deg) scale(0); transition: transform .18s; }
+    .check:hover { border-color: var(--done); }
+    .check:checked { background: var(--done); border-color: var(--done); }
+    .check:checked::after { transform: translateY(-1px) rotate(45deg) scale(1); }
+
+    .body { flex: 1; min-width: 0; }
+    .t-title { margin: 0; font-size: 1.08rem; font-weight: 700; overflow-wrap: anywhere; text-decoration: line-through; text-decoration-color: transparent; text-decoration-thickness: 2px; transition: color .25s, text-decoration-color .25s; }
+    .t-desc { margin: .1rem 0 0; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; }
+    .t-meta { display: block; margin-top: .3rem; color: #8a93a8; font-size: .8rem; }
+    .done .t-title { color: var(--muted); text-decoration-color: var(--done); }
+    .done .t-desc { opacity: .7; }
+
+    .icons { display: flex; gap: .1rem; flex: none; }
+    .icon-btn { display: grid; place-content: center; width: 2.2rem; height: 2.2rem; background: transparent; border: 0; border-radius: 10px; color: var(--muted); cursor: pointer; }
+    .icon-btn:hover { background: var(--bg); color: var(--ink); }
+    .icon-btn.del:hover { background: #fdecea; color: var(--danger); }
+
+    .state { margin: 0; padding: 2.4rem 1.2rem; text-align: center; color: var(--muted); }
+    .state.err { color: var(--danger); }
+    .banner { margin-bottom: 1rem; padding: .7rem 1rem; background: #fdecea; color: var(--danger); border-radius: 10px; font-size: .95rem; }
+    [hidden] { display: none !important; }
+    @media (max-width: 480px) { .progress small { white-space: normal; } .row.stack { flex-direction: column-reverse; align-items: stretch; } }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  </style>
+</head>
+<body>
+<main class="page">
+  <header>
+    <p class="label">My Tasks</p>
+    <h1 id="headline">&nbsp;</h1>
+    <div class="progress" id="progress" hidden>
+      <div class="bar"><span id="bar"></span></div>
+      <small id="progress-text"></small>
+    </div>
+  </header>
+
+  <form class="panel composer" id="add-form">
+    <input class="field title" id="new-title" placeholder="What needs to be done?" maxlength="100" autocomplete="off" aria-label="Task title">
+    <textarea class="field" id="new-desc" rows="2" placeholder="Description" aria-label="Description"></textarea>
+    <div class="row stack">
+      <p class="error" id="form-error" role="alert"></p>
+      <button class="btn" type="submit" id="add-btn">Add task</button>
+    </div>
+  </form>
+
+  <div class="banner" id="banner" role="alert" hidden></div>
+
+  <section class="panel board" aria-label="Task list">
+    <div class="filters" id="filters" role="group" aria-label="Filter tasks">
+      <button class="filter" type="button" data-filter="all" aria-pressed="true">All</button>
+      <button class="filter" type="button" data-filter="active" aria-pressed="false">Active</button>
+      <button class="filter" type="button" data-filter="done" aria-pressed="false">Completed</button>
+    </div>
+    <p class="state" id="state">Loading tasks…</p>
+    <ul id="list" hidden></ul>
+  </section>
+</main>
+
+<script>
+(function () {
+  var API = '/api';
+  var tasks = [];
+  var filter = 'all';
+  var editingId = null;
+  var loaded = false;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var dateFmt = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+
+  function csrf() {
+    var m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+
+  // Turn DRF error payloads into one readable string.
+  function flatten(d, key) {
+    if (typeof d === 'string') return [key ? key + ': ' + d : d];
+    if (Array.isArray(d)) return d.flatMap(function (x) { return flatten(x, key); });
+    if (d && typeof d === 'object') {
+      return Object.keys(d).flatMap(function (k) { return flatten(d[k], k === 'error' || k === 'detail' ? '' : k); });
+    }
+    return [];
+  }
+
+  async function request(path, method, body) {
+    var headers = { 'Content-Type': 'application/json' };
+    var token = csrf();
+    if (token) headers['X-CSRFToken'] = token;
+    var res;
+    try {
+      res = await fetch(API + path, { method: method || 'GET', headers: headers, body: body ? JSON.stringify(body) : undefined });
+    } catch (e) {
+      throw new Error('Cannot reach the server. Is the backend running?');
+    }
+    var data = null;
+    try { data = await res.json(); } catch (e) {}
+    if (!res.ok) throw new Error(flatten(data).join(' ') || 'Server error (' + res.status + ')');
+    return data;
+  }
+
+  var bannerTimer;
+  function flash(msg) {
+    var b = $('banner');
+    b.textContent = msg; b.hidden = false;
+    clearTimeout(bannerTimer);
+    bannerTimer = setTimeout(function () { b.hidden = true; }, 5000);
+  }
+
+  async function load() {
+    try {
+      tasks = await request('/tasks');
+      loaded = true;
+      render();
+    } catch (e) {
+      loaded = false;
+      renderError(e.message);
+    }
+  }
+
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+
+  var ICON_EDIT = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17v3z"/><path d="M14.5 7.5l3 3"/></svg>';
+  var ICON_DEL = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></svg>';
+
+  function iconBtn(cls, label, svg, onClick) {
+    var b = el('button', 'icon-btn ' + cls);
+    b.type = 'button'; b.setAttribute('aria-label', label); b.innerHTML = svg;
+    b.addEventListener('click', onClick);
+    return b;
+  }
+
+  function renderError(msg) {
+    $('list').hidden = true;
+    var s = $('state');
+    s.hidden = false; s.className = 'state err'; s.textContent = '';
+    s.appendChild(el('span', null, msg + ' '));
+    var retry = el('button', 'btn ghost', 'Retry');
+    retry.type = 'button'; retry.addEventListener('click', load);
+    s.appendChild(retry);
+    $('headline').innerHTML = '&nbsp;';
+    $('progress').hidden = true;
+  }
+
+  function renderSummary() {
+    var total = tasks.length;
+    var done = tasks.filter(function (t) { return t.completed; }).length;
+    var left = total - done;
+    $('headline').textContent = total === 0 ? 'Nothing here yet' : left === 0 ? 'All done' : left + (left === 1 ? ' task left' : ' tasks left');
+    $('progress').hidden = total === 0;
+    $('bar').style.width = (total ? Math.round(done / total * 100) : 0) + '%';
+    $('progress-text').textContent = done + ' of ' + total + ' completed';
+  }
+
+  function render() {
+    renderSummary();
+    var shown = tasks.filter(function (t) {
+      return filter === 'active' ? !t.completed : filter === 'done' ? t.completed : true;
+    }).sort(function (a, b) { return new Date(b.created_at) - new Date(a.created_at); });
+
+    var list = $('list'), state = $('state');
+    list.textContent = '';
+    if (shown.length === 0) {
+      list.hidden = true; state.hidden = false; state.className = 'state';
+      state.textContent = tasks.length === 0 ? 'Add your first task above.' : 'No tasks in this view.';
+      return;
+    }
+    state.hidden = true; list.hidden = false;
+    shown.forEach(function (t) { list.appendChild(t.id === editingId ? editRow(t) : viewRow(t)); });
+  }
+
+  function viewRow(t) {
+    var li = el('li', 'task' + (t.completed ? ' done' : ''));
+    var cb = el('input', 'check'); cb.type = 'checkbox'; cb.checked = t.completed;
+    cb.setAttribute('aria-label', 'Mark "' + t.title + '" as completed');
+    cb.addEventListener('change', function () { toggle(t, cb.checked); });
+
+    var body = el('div', 'body');
+    body.appendChild(el('h2', 't-title', t.title));
+    body.appendChild(el('p', 't-desc', t.description));
+    body.appendChild(el('time', 't-meta', dateFmt.format(new Date(t.created_at))));
+
+    var icons = el('div', 'icons');
+    icons.appendChild(iconBtn('', 'Edit "' + t.title + '"', ICON_EDIT, function () { editingId = t.id; render(); }));
+    icons.appendChild(iconBtn('del', 'Delete "' + t.title + '"', ICON_DEL, function () { remove(t); }));
+
+    li.append(cb, body, icons);
+    return li;
+  }
+
+  function editRow(t) {
+    var li = el('li', 'task editing');
+    var form = el('form');
+    var title = el('input', 'field title'); title.value = t.title; title.maxLength = 100; title.setAttribute('aria-label', 'Title');
+    var desc = el('textarea', 'field'); desc.rows = 2; desc.value = t.description; desc.setAttribute('aria-label', 'Description');
+    var row = el('div', 'row stack');
+    var err = el('p', 'error'); err.setAttribute('role', 'alert');
+    var actions = el('div', 'actions');
+    var cancel = el('button', 'btn ghost', 'Cancel'); cancel.type = 'button';
+    cancel.addEventListener('click', function () { editingId = null; render(); });
+    var save = el('button', 'btn', 'Save'); save.type = 'submit';
+    actions.append(cancel, save);
+    row.append(err, actions);
+    form.append(title, desc, row);
+
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      var tt = title.value.trim(), dd = desc.value.trim();
+      if (!tt || !dd) { err.textContent = 'Title and description are required.'; return; }
+      save.disabled = true; save.textContent = 'Saving…';
+      try {
+        await request('/update-task/' + t.id, 'PUT', { title: tt, description: dd });
+        editingId = null;
+        await load();
+      } catch (ex) {
+        err.textContent = ex.message; save.disabled = false; save.textContent = 'Save';
+      }
+    });
+    li.appendChild(form);
+    setTimeout(function () { title.focus(); }, 0);
+    return li;
+  }
+
+  async function toggle(t, value) {
+    t.completed = value; render();              // optimistic
+    try {
+      await request('/update-task/' + t.id, 'PUT', { completed: value });
+    } catch (e) {
+      t.completed = !value; render(); flash(e.message);
+    }
+  }
+
+  async function remove(t) {
+    if (!window.confirm('Delete "' + t.title + '"? This cannot be undone.')) return;
+    try {
+      await request('/delete-task/' + t.id, 'DELETE');
+      if (editingId === t.id) editingId = null;
+      await load();
+    } catch (e) {
+      flash(e.message);
+      if (/not found/i.test(e.message)) load();   // already gone, resync
+    }
+  }
+
+  $('add-form').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var title = $('new-title').value.trim(), desc = $('new-desc').value.trim();
+    var err = $('form-error'), btn = $('add-btn');
+    if (!title || !desc) { err.textContent = 'Please fill in both title and description.'; return; }
+    err.textContent = ''; btn.disabled = true; btn.textContent = 'Adding…';
+    try {
+      await request('/add-task', 'POST', { title: title, description: desc, completed: false });
+      $('new-title').value = ''; $('new-desc').value = '';
+      await load();
+    } catch (ex) {
+      err.textContent = ex.message;
+    } finally {
+      btn.disabled = false; btn.textContent = 'Add task';
+    }
+  });
+
+  $('filters').addEventListener('click', function (e) {
+    var b = e.target.closest('.filter');
+    if (!b) return;
+    filter = b.dataset.filter;
+    document.querySelectorAll('.filter').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+    if (loaded) render();
+  });
+
+  load();
+})();
+</script>
+</body>
+</html>
+{% endverbatim %}
