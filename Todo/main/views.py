@@ -33,3 +33,14 @@ class UpdateTaskView(APIView):
             serialiser.save()
             return Response({"message": "Task updated successfully"}, status=200)
         return Response(serialiser.errors, status=400)
+
+
+class DeleteTaskView(APIView):
+    def delete(self, request, pk):
+        try:
+            task = TaskModel.objects.get(pk=pk)
+        except TaskModel.DoesNotExist:
+            return Response({"error": "Task not found"}, status=404)
+
+        task.delete()
+        return Response({"message": "Task deleted successfully"}, status=200)
