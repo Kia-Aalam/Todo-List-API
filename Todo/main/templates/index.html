@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✅</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📝</text></svg>">
   <title>My Tasks</title>
   <style>
     :root {
@@ -81,7 +81,7 @@
 <body>
 <main class="page">
   <header>
-    <p class="label">My Tasks</p>
+    <p class="label">✅ My Tasks</p>
     <h1 id="headline">&nbsp;</h1>
     <div class="progress" id="progress" hidden>
       <div class="bar"><span id="bar"></span></div>
@@ -121,6 +121,13 @@
 
   var $ = function (id) { return document.getElementById(id); };
   var dateFmt = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+
+  // Never let a missing/invalid date break the whole list.
+  function fmtDate(t) {
+    var raw = t.created_at || t.updated_at;
+    var d = raw ? new Date(raw) : null;
+    return d && !isNaN(d.getTime()) ? dateFmt.format(d) : '';
+  }
 
   function csrf() {
     var m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
@@ -167,6 +174,7 @@
       loaded = true;
       render();
     } catch (e) {
+      console.error(e);
       loaded = false;
       renderError(e.message);
     }
@@ -215,7 +223,7 @@
     renderSummary();
     var shown = tasks.filter(function (t) {
       return filter === 'active' ? !t.completed : filter === 'done' ? t.completed : true;
-    }).sort(function (a, b) { return new Date(b.created_at) - new Date(a.created_at); });
+    }).sort(function (a, b) { return b.id - a.id; });   // newest first
 
     var list = $('list'), state = $('state');
     list.textContent = '';
@@ -237,7 +245,8 @@
     var body = el('div', 'body');
     body.appendChild(el('h2', 't-title', t.title));
     body.appendChild(el('p', 't-desc', t.description));
-    body.appendChild(el('time', 't-meta', dateFmt.format(new Date(t.created_at))));
+    var when = fmtDate(t);
+    if (when) body.appendChild(el('time', 't-meta', when));
 
     var icons = el('div', 'icons');
     icons.appendChild(iconBtn('', 'Edit "' + t.title + '"', ICON_EDIT, function () { editingId = t.id; render(); }));
