@@ -6,7 +6,7 @@
 
 [English](#english) · [فارسی](#فارسی)
 
-![Screenshot](docs/screenshot.png)
+![Screenshot](image/screenshot.png)
 
 </div>
 
