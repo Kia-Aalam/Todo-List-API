@@ -30,8 +30,6 @@ The backend is a simple Todo API built with class-based `APIView`s, a `ModelSeri
 - Simple frontend served directly by Django at `/` (no Node.js, no build step, no CORS setup)
 - Filters (All / Active / Completed), progress bar, and a custom delete-confirmation dialog
 
-![Delete confirmation](docs/confirm-dialog.png)
-
 ### Tech stack
 
 - Python 3, Django, Django REST Framework
