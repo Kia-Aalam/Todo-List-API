@@ -70,18 +70,35 @@
     .icon-btn:hover { background: var(--bg); color: var(--ink); }
     .icon-btn.del:hover { background: #fdecea; color: var(--danger); }
 
+
+    .btn.danger { background: var(--danger); border-color: var(--danger); }
+
+
     .state { margin: 0; padding: 2.4rem 1.2rem; text-align: center; color: var(--muted); }
     .state.err { color: var(--danger); }
     .banner { margin-bottom: 1rem; padding: .7rem 1rem; background: #fdecea; color: var(--danger); border-radius: 10px; font-size: .95rem; }
+
+    /* ---- confirm dialog ---- */
+    dialog.confirm { width: min(26rem, calc(100% - 2.5rem)); padding: 1.6rem 1.5rem 1.3rem; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--ink); box-shadow: 0 24px 60px -12px rgba(22,33,58,.35); }
+    dialog.confirm[open] { animation: pop .18s ease-out; }
+    dialog.confirm::backdrop { background: rgba(22,33,58,.45); backdrop-filter: blur(2px); animation: fade .18s ease-out; }
+    .confirm .c-icon { display: grid; place-content: center; width: 2.8rem; height: 2.8rem; margin-bottom: .9rem; border-radius: 50%; background: #fdecea; color: var(--danger); }
+    .confirm h2 { margin: 0 0 .3rem; font-size: 1.25rem; font-weight: 800; letter-spacing: -.01em; }
+    .confirm p { margin: 0; color: var(--muted); overflow-wrap: anywhere; }
+    .confirm .c-name { color: var(--ink); font-weight: 700; }
+    .confirm .c-actions { display: flex; justify-content: flex-end; gap: .5rem; margin-top: 1.4rem; }
+    @keyframes pop { from { opacity: 0; transform: translateY(8px) scale(.97); } to { opacity: 1; transform: none; } }
+    @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+    @media (max-width: 480px) { .confirm .c-actions .btn { flex: 1; } }
     [hidden] { display: none !important; }
     @media (max-width: 480px) { .progress small { white-space: normal; } .row.stack { flex-direction: column-reverse; align-items: stretch; } }
-    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
   </style>
 </head>
 <body>
 <main class="page">
   <header>
-    <p class="label">✅ My Tasks</p>
+    <p class="label">My Tasks</p>
     <h1 id="headline">&nbsp;</h1>
     <div class="progress" id="progress" hidden>
       <div class="bar"><span id="bar"></span></div>
@@ -110,6 +127,20 @@
     <ul id="list" hidden></ul>
   </section>
 </main>
+
+<dialog class="confirm" id="confirm" aria-labelledby="c-title" aria-describedby="c-msg">
+  <form method="dialog">
+    <div class="c-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></svg>
+    </div>
+    <h2 id="c-title">Delete this task?</h2>
+    <p id="c-msg"></p>
+    <div class="c-actions">
+      <button class="btn ghost" value="cancel" id="c-cancel" autofocus>Cancel</button>
+      <button class="btn danger" value="delete">Delete</button>
+    </div>
+  </form>
+</dialog>
 
 <script>
 (function () {
@@ -298,8 +329,23 @@
     }
   }
 
+  // Styled replacement for window.confirm()
+  function confirmDelete(t) {
+    return new Promise(function (resolve) {
+      var dlg = $('confirm'), msg = $('c-msg');
+      msg.textContent = '';
+      msg.append(el('span', 'c-name', '\u201C' + t.title + '\u201D'), ' will be permanently deleted. This cannot be undone.');
+      dlg.returnValue = 'cancel';                       // Esc keeps this value
+      dlg.addEventListener('close', function () { resolve(dlg.returnValue === 'delete'); }, { once: true });
+      dlg.showModal();
+    });
+  }
+  $('confirm').addEventListener('click', function (e) {  // click on backdrop = cancel
+    if (e.target === this) this.close('cancel');
+  });
+
   async function remove(t) {
-    if (!window.confirm('Delete "' + t.title + '"? This cannot be undone.')) return;
+    if (!(await confirmDelete(t))) return;
     try {
       await request('/delete-task/' + t.id, 'DELETE');
       if (editingId === t.id) editingId = null;
